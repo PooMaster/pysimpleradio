@@ -8,14 +8,36 @@ SRS_VERSION = "2.1.0.7"
 
 
 class MessageType(IntEnum):
+    # Client sends to update non-radio client info
+    # Server sends to update info about a client's (maybe non-radio) info
     UPDATE = 0
+
+    # Nothing for now
     PING = 1
+
+    # Client sends to connect to server
+    # Server sends to update client about all state when connecting
     SYNC = 2
+
+    # Client sends to update server about radio states
+    # Server sends to client radio info one changes (if showing tune count)
     RADIO_UPDATE = 3
+
+    # Client sends to trigger server to broadcast its settings
+    # Server sends to update clients about settings
     SERVER_SETTINGS = 4
+
+    # Server sends to inform that a client disconnected
     CLIENT_DISCONNECT = 5
+
+    # Server sends to tell client its version string isn't supported
     VERSION_MISMATCH = 6
+
+    # Client sends to enable AWACS mode
+    # Server sends on correct AWACS mode password
     EXTERNAL_AWACS_MODE_PASSWORD = 7
+
+    # Client sends leave AWACS mode
     EXTERNAL_AWACS_MODE_DISCONNECT = 8
 
 
@@ -57,30 +79,48 @@ class ServerSettings(TypedDict):
 # Lists all clients and server settings
 class SyncMessage(TypedDict):
     Version: str
-    Clients: list[ClientInfo]
     MsgType: MessageType
+    Clients: list[ClientInfo]
     ServerSettings: ServerSettings
 
 
 # One client may have retuned a radio
 class RadioUpdateMessage(TypedDict):
     Version: str
-    Client: ClientInfo
     MsgType: MessageType
+    Client: ClientInfo
 
 
 # Have just seen this return your own canonical client info right after connecting
 class UpdateMessage(TypedDict):
     Version: str
-    Client: ClientInfo
     MsgType: MessageType
+    Client: ClientInfo
 
 
 # Given client just disconnected
 class ClientDisconnectMessage(TypedDict):
     Version: str
-    Client: ClientInfo
     MsgType: MessageType
+    Client: ClientInfo
+
+
+# Server sends its settings
+class ServerSettingsMessage(TypedDict):
+    Version: str
+    MsgType: MessageType
+    ServerSettings: ServerSettings
+
+
+# Client tried to connect with an unsupported version string
+class VersionMismatchMessage(TypedDict):
+    Version: str
+    MsgType: MessageType
+
+
+class ExternalAwacsModePasswordMessage(TypedDict):
+    MsgType: MessageType
+    Client: ClientInfo
 
 
 #############
@@ -90,15 +130,35 @@ class ClientDisconnectMessage(TypedDict):
 
 def sync_message(client_info: ClientInfo):
     return {
-        "MsgType": MessageType.SYNC,
         "Version": SRS_VERSION,
+        "MsgType": MessageType.SYNC,
         "Client": client_info,
     }
 
 
-def radio_update(client_info: ClientInfo):
+def radio_update_message(client_info: ClientInfo):
     return {
         "MsgType": MessageType.RADIO_UPDATE,
-        "Version": SRS_VERSION,
+        "Client": client_info,
+    }
+
+
+def server_settings_message():
+    return {
+        "MsgType": MessageType.SERVER_SETTINGS,
+    }
+
+
+def external_awacs_mode_password_message(client_info: ClientInfo, password: str):
+    return {
+        "MsgType": MessageType.EXTERNAL_AWACS_MODE_PASSWORD,
+        "ExternalAwacsModePassword": password,
+        "Client": client_info,
+    }
+
+
+def external_awacs_mode_disconnect_message(client_info: ClientInfo):
+    return {
+        "MsgType": MessageType.EXTERNAL_AWACS_MODE_DISCONNECT,
         "Client": client_info,
     }
