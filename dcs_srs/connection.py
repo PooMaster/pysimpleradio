@@ -1,3 +1,12 @@
+"""
+An SRS client starts with forming a TCP connection and trading messages with the
+server in the form of single-line JSON objects. This file has an async function
+for forming this TCP connection and sending and receiving those objects. Other
+code can interact with this connection via two async queues. Messages added to
+the send queue will be sent and any received messages will be deserialized and
+added to the receive queue for some other code to pop and process. 👌
+"""
+
 import asyncio
 import json
 import logging
