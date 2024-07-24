@@ -56,10 +56,15 @@ class VoicePacket:
 
         packet_length = header_length + audio_length + frequency_length + trailer_length
 
+        # HEADER SEGMENT
         header = struct.pack("<HHH", packet_length, audio_length, frequency_length)
+
+        # FREQUENCY SEGMENT
         frequency_segment = b"".join(
             struct.pack("<dBB", f.frequency, f.modulation, 0) for f in self.frequencies
         )
+
+        # FIXED SEGMENT
         trailer_segment = struct.pack(
             "<IQB", self.unit_id, self.packet_id, self.hop_count
         )
@@ -75,12 +80,15 @@ class VoicePacket:
 
     @classmethod
     def deserialize(cls, data: bytes) -> Self:
+        # HEADER SEGMENT
         packet_length, audio_length, frequency_length = struct.unpack_from(
             "<HHH", data, offset=0
         )
 
+        # AUDIO SEGMENT
         audio_data = data[header_length : header_length + audio_length]
 
+        # FREQUENCY SEGMENT
         frequencies = []
         for offset in range(0, frequency_length, single_frequency_length):
             freq, modulation, encryption = struct.unpack_from(
@@ -88,10 +96,10 @@ class VoicePacket:
             )
             frequencies.append(Frequency(freq, Modulation(modulation)))
 
+        # FIXED SEGMENT
         unit_id, packet_id, hop_count = struct.unpack_from(
             "<IQB", data, offset=header_length + audio_length + frequency_length
         )
-
         original_client_guid = data[-44:-22].decode()
         guid = data[-22:].decode()
 
