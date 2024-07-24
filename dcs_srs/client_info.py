@@ -1,6 +1,8 @@
 from enum import IntEnum
 from typing import TypedDict
 
+from .utils import Guid
+
 
 class Modulation(IntEnum):
     AM = 0
@@ -100,14 +102,14 @@ class LatLngPosition(TypedDict):
 class ClientInfo(TypedDict):
     Coalition: Coalition
     Name: str
-    ClientGuid: str
+    ClientGuid: Guid
     RadioInfo: RadioInfo
     LatLngPosition: LatLngPosition
     AllowRecord: bool
     Seat: int
 
 
-def default_client_info(guid: str) -> ClientInfo:
+def default_client_info(guid: Guid) -> ClientInfo:
     return {
         "Coalition": Coalition.SPECTATOR,
         "Name": "PBot",
