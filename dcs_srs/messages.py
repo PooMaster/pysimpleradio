@@ -41,11 +41,6 @@ class MessageType(IntEnum):
     EXTERNAL_AWACS_MODE_DISCONNECT = 8
 
 
-class BaseNetworkMessage(TypedDict):
-    Version: str
-    MsgType: MessageType
-
-
 class ServerSettings(TypedDict):
     ALLOW_RADIO_ENCRYPTION: str  # Example: "true"
     CLIENT_EXPORT_ENABLED: str  # Example: "false"
@@ -76,51 +71,13 @@ class ServerSettings(TypedDict):
 #############
 
 
-# Lists all clients and server settings
-class SyncMessage(TypedDict):
+class NetworkMessage(TypedDict):
     Version: str
     MsgType: MessageType
+    Client: ClientInfo
     Clients: list[ClientInfo]
     ServerSettings: ServerSettings
-
-
-# One client may have retuned a radio
-class RadioUpdateMessage(TypedDict):
-    Version: str
-    MsgType: MessageType
-    Client: ClientInfo
-
-
-# Have just seen this return your own canonical client info right after connecting
-class UpdateMessage(TypedDict):
-    Version: str
-    MsgType: MessageType
-    Client: ClientInfo
-
-
-# Given client just disconnected
-class ClientDisconnectMessage(TypedDict):
-    Version: str
-    MsgType: MessageType
-    Client: ClientInfo
-
-
-# Server sends its settings
-class ServerSettingsMessage(TypedDict):
-    Version: str
-    MsgType: MessageType
-    ServerSettings: ServerSettings
-
-
-# Client tried to connect with an unsupported version string
-class VersionMismatchMessage(TypedDict):
-    Version: str
-    MsgType: MessageType
-
-
-class ExternalAwacsModePasswordMessage(TypedDict):
-    MsgType: MessageType
-    Client: ClientInfo
+    ExternalAwacsModePassword: str
 
 
 #############
@@ -128,7 +85,7 @@ class ExternalAwacsModePasswordMessage(TypedDict):
 #############
 
 
-def sync_message(client_info: ClientInfo):
+def sync_message(client_info: ClientInfo) -> NetworkMessage:
     return {
         "Version": SRS_VERSION,
         "MsgType": MessageType.SYNC,
@@ -136,20 +93,22 @@ def sync_message(client_info: ClientInfo):
     }
 
 
-def radio_update_message(client_info: ClientInfo):
+def radio_update_message(client_info: ClientInfo) -> NetworkMessage:
     return {
         "MsgType": MessageType.RADIO_UPDATE,
         "Client": client_info,
     }
 
 
-def server_settings_message():
+def server_settings_message() -> NetworkMessage:
     return {
         "MsgType": MessageType.SERVER_SETTINGS,
     }
 
 
-def external_awacs_mode_password_message(client_info: ClientInfo, password: str):
+def external_awacs_mode_password_message(
+    client_info: ClientInfo, password: str
+) -> NetworkMessage:
     return {
         "MsgType": MessageType.EXTERNAL_AWACS_MODE_PASSWORD,
         "ExternalAwacsModePassword": password,
@@ -157,7 +116,7 @@ def external_awacs_mode_password_message(client_info: ClientInfo, password: str)
     }
 
 
-def external_awacs_mode_disconnect_message(client_info: ClientInfo):
+def external_awacs_mode_disconnect_message(client_info: ClientInfo) -> NetworkMessage:
     return {
         "MsgType": MessageType.EXTERNAL_AWACS_MODE_DISCONNECT,
         "Client": client_info,

@@ -112,7 +112,7 @@ class ClientInfo(TypedDict):
 def default_client_info(guid: Guid) -> ClientInfo:
     return {
         "Coalition": Coalition.SPECTATOR,
-        "Name": "PBot",
+        "Name": "",
         "ClientGuid": guid,
         "RadioInfo": {
             "radios": [
@@ -165,3 +165,19 @@ def make_radio_information(
         "secFreq": 1,
         "retransmit": False,
     }
+
+
+def print_client_info(client: ClientInfo):
+    coalition = Coalition(client["Coalition"])
+    print(
+        f'{client["Name"]}: {client.get("RadioInfo", {}).get("ambient", {}).get("abType", "")} <{coalition.name}>'
+    )
+    for radio in client["RadioInfo"]["radios"]:
+        if radio["freq"] > 1.0 and radio["modulation"] != Modulation.INTERCOM:
+            freq = radio["freq"]
+            if freq >= 10_000_000:
+                freq_str = f"{freq / 1_000_000 : .03f} MHz"
+            else:
+                freq_str = f"{freq / 1_000 : .03f} KHz"
+
+            print(f'    {freq_str} {Modulation(radio["modulation"]).name}')

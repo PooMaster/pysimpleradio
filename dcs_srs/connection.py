@@ -26,7 +26,6 @@ async def connect_client(
     Form a TCP connection and just send and receive single-line JSON data
     objects. Messages are forwarded in and out via the send and received queues.
     """
-
     logger.info(f"Opening TCP connection to {host}:{port}")
     reader, writer = await asyncio.open_connection(host, port)
 
@@ -37,9 +36,10 @@ async def connect_client(
 
 
 async def send_messages(writer: asyncio.StreamWriter, send_queue: asyncio.Queue):
+    """Send messages from the queue to the TCP socket"""
     while True:
         # Get the next message to be sent
-        msg: messages.BaseNetworkMessage = await send_queue.get()
+        msg: messages.NetworkMessage = await send_queue.get()
 
         # And serialize and send it
         logger.debug("Sending %r message", messages.MessageType(msg["MsgType"]))
@@ -47,6 +47,7 @@ async def send_messages(writer: asyncio.StreamWriter, send_queue: asyncio.Queue)
 
 
 async def receive_messages(reader: asyncio.StreamReader, receive_queue: asyncio.Queue):
+    """Receive messages from the TCP socket and put them on the receive queue"""
     while True:
         # Get the next line of data
         line = (await reader.readline()).decode()
@@ -54,6 +55,6 @@ async def receive_messages(reader: asyncio.StreamReader, receive_queue: asyncio.
             raise RuntimeError("Client TCP connection broken")
 
         # And deserialize it and place it on the receive queue
-        msg: messages.BaseNetworkMessage = json.loads(line.rstrip())
+        msg: messages.NetworkMessage = json.loads(line.rstrip())
         logger.debug("Received %r message", messages.MessageType(msg["MsgType"]))
         await receive_queue.put(msg)
