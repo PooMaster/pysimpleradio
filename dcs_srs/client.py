@@ -19,10 +19,11 @@ from .client_info import (
     make_radio_information,
     print_client_info,
 )
-from .connection import connect_client
+from .tcp_json_connection import connect_tcp_json
 from . import messages
-from .messages import MessageType
+from .messages import MessageType, NetworkMessage
 from .utils import Guid, make_short_guid
+from .voice_connection import connect_voice
 
 logger = logging.getLogger(__name__)
 
@@ -37,10 +38,8 @@ class SrsClient:
 
         self.my_info["Name"] = name
 
-        self._send_queue = asyncio.Queue()
-        self._receive_queue = asyncio.Queue()
         self._message_futures: defaultdict[
-            MessageType, list[asyncio.Future[messages.NetworkMessage]]
+            MessageType, list[asyncio.Future[NetworkMessage]]
         ] = defaultdict(list)
 
         self._tcp_task = None
@@ -58,12 +57,13 @@ class SrsClient:
         logger.info(f"Connecting to SRS server {host}:{port}")
 
         # Start up tasks to handle TCP connection
-        self._tcp_task = asyncio.create_task(
-            connect_client(host, port, self._send_queue, self._receive_queue)
+        receive_queue, self._send_queue = await connect_tcp_json(host, port)
+        self._message_receive_task = asyncio.create_task(
+            self._handle_messages(receive_queue)
         )
-        self._message_receive_task = asyncio.create_task(self._handle_messages())
 
         # Send sync message
+        logger.info("Sending Sync...")
         await self._send_queue.put(messages.sync_message(self.my_info))
         try:
             await asyncio.wait_for(self._future_message(MessageType.SYNC), 5)
@@ -71,6 +71,21 @@ class SrsClient:
             raise TimeoutError("Timed out trying to log in")
 
         logger.info("Connected")
+        logger.info("Starting UDP voice connection")
+
+        self._receive_voice_queue, self._send_voice_queue = await connect_voice(
+            (host, port), self.guid
+        )
+
+        asyncio.create_task(self.drop_voice())
+
+    async def drop_voice(self):
+        while True:
+            voice_packet = await self._receive_voice_queue.get()
+            transmitter_name = self.clients.get(
+                voice_packet.guid, {"Name": "<UNKNOWN>"}
+            )["Name"]
+            logger.debug(f"Getting voice from {transmitter_name}!")
 
     async def log_in_awacs(self, password: str) -> bool:
         """Log in as AWACS"""
@@ -108,16 +123,16 @@ class SrsClient:
     #
     def _future_message(
         self, message_type: MessageType
-    ) -> asyncio.Future[messages.NetworkMessage]:
+    ) -> asyncio.Future[NetworkMessage]:
         """Future that completes when a message of the given type is received."""
         future = asyncio.Future()
         self._message_futures[message_type].append(future)
         return future
 
-    async def _handle_messages(self):
+    async def _handle_messages(self, receive_queue: asyncio.Queue[NetworkMessage]):
         """Take messages from receive queue forever."""
         while True:
-            msg: messages.NetworkMessage = await self._receive_queue.get()
+            msg: NetworkMessage = await receive_queue.get()
             msg_type = MessageType(msg["MsgType"])
 
             # Update SRS server state
@@ -135,17 +150,24 @@ class SrsClient:
 
                     case MessageType.RADIO_UPDATE:
                         updated_guid = msg["Client"]["ClientGuid"]
-                        self.clients[updated_guid].update(msg["Client"])
+                        if updated_guid in self.clients:
+                            self.clients[updated_guid].update(msg["Client"])
+                        else:
+                            self.clients[updated_guid] = msg["Client"]
                         self._print_clients()
 
                     case MessageType.UPDATE:
                         updated_guid = msg["Client"]["ClientGuid"]
-                        self.clients[updated_guid].update(msg["Client"])
+                        if updated_guid in self.clients:
+                            self.clients[updated_guid].update(msg["Client"])
+                        else:
+                            self.clients[updated_guid] = msg["Client"]
                         self._print_clients()
 
                     case MessageType.CLIENT_DISCONNECT:
                         disconnected_client = msg["Client"]["ClientGuid"]
-                        del self.clients[disconnected_client]
+                        if disconnected_client in self.clients:
+                            del self.clients[disconnected_client]
                         self._print_clients()
 
                     case MessageType.VERSION_MISMATCH:
