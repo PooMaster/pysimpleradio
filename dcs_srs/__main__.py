@@ -8,7 +8,27 @@ from .client_info import Modulation
 logger = logging.getLogger(__name__)
 
 
-async def main():
+async def main(host: str, port: int):
+    # Make and connect client to the SRS server
+    client = SrsClient("SrsSuperBot")
+    await client.connect(host, port)
+
+    # Grab the first global frequency and tune radio 1 to it
+    global_freq = client.server_settings["GLOBAL_LOBBY_FREQUENCIES"].split(",")[0]
+    global_freq_mhz = float(global_freq)
+    await client.tune_radio(1, global_freq_mhz * 1_000_000, Modulation.AM)
+
+    # Log in to external AWACS mode
+    if not await client.log_in_awacs("blue"):
+        print("Bad password")
+        return
+
+    await asyncio.to_thread(input, "press enter to end...")
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
+
     parser = argparse.ArgumentParser(
         description="Connect to an SRS server and send some audio"
     )
@@ -22,20 +42,4 @@ async def main():
     )
     args = parser.parse_args()
 
-    client = SrsClient("SrsSuperBot")
-    await client.connect(args.host, args.port)
-
-    global_freq = client.server_settings["GLOBAL_LOBBY_FREQUENCIES"].split(",")[0]
-    global_freq_mhz = float(global_freq)
-    await client.tune_radio(1, global_freq_mhz * 1_000_000, Modulation.AM)
-
-    if not await client.log_in_awacs("blue"):
-        print("Bad password")
-        return
-
-    await asyncio.to_thread(input, "press enter to end...")
-
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    asyncio.run(main())
+    asyncio.run(main(args.host, args.port))
