@@ -8,7 +8,7 @@ from .client_info import Modulation
 logger = logging.getLogger(__name__)
 
 
-async def main(addr: tuple[str, int], name: str):
+async def main(addr: tuple[str, int], name: str, awacs: str):
     # Make a new client instance
     client = SrsClient(name)
 
@@ -21,10 +21,11 @@ async def main(addr: tuple[str, int], name: str):
     global_freq_mhz = float(global_freq)
     await client.tune_radio(1, global_freq_mhz * 1_000_000, Modulation.AM)
 
-    # Log in to external AWACS mode
-    if not await client.log_in_awacs("blue"):
-        print("Bad password")
-        return
+    if awacs:
+        # Log in to external AWACS mode
+        if not await client.log_in_awacs(awacs):
+            print("Bad password")
+            return
 
     await asyncio.to_thread(input, "press enter to end...")
 
@@ -46,6 +47,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--name", default="PySimpleAudio", help="Client name to use in SRS"
     )
+    parser.add_argument(
+        "--awacs", help="Log in to external AWACS mode with the given password"
+    )
     args = parser.parse_args()
 
-    asyncio.run(main((args.host, args.port), args.name))
+    asyncio.run(main((args.host, args.port), args.name, args.awacs))
