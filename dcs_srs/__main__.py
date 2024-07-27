@@ -8,9 +8,12 @@ from .client_info import Modulation
 logger = logging.getLogger(__name__)
 
 
-async def main(host: str, port: int):
-    # Make and connect client to the SRS server
-    client = SrsClient("SrsSuperBot")
+async def main(addr: tuple[str, int], name: str):
+    # Make a new client instance
+    client = SrsClient(name)
+
+    # Connect to the SRS server
+    host, port = addr
     await client.connect(host, port)
 
     # Grab the first global frequency and tune radio 1 to it
@@ -40,6 +43,9 @@ if __name__ == "__main__":
         default=5002,
         help="Port for connecting to the SRS server",
     )
+    parser.add_argument(
+        "--name", default="PySimpleAudio", help="Client name to use in SRS"
+    )
     args = parser.parse_args()
 
-    asyncio.run(main(args.host, args.port))
+    asyncio.run(main((args.host, args.port), args.name))
