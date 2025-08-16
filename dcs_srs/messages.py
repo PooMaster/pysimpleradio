@@ -20,7 +20,7 @@ class MessageType(IntEnum):
     SYNC = 2
 
     # Client sends to update server about radio states
-    # Server sends to client radio info one changes (if showing tune count)
+    # Server sends to client radio info on changes (if showing tune count)
     RADIO_UPDATE = 3
 
     # Client sends to trigger server to broadcast its settings
